@@ -22,7 +22,7 @@
 static GtkWidget *app;
 
 static void
-app_activated_cb (GtkAppChooserWidget *w, GAppInfo *app, gpointer d)
+app_activated_cb (GtkAppChooserWidget *w, GAppInfo *app_info, gpointer user_data)
 {
   if (options.plug == -1)
     yad_exit (options.data.def_resp);
@@ -31,13 +31,13 @@ app_activated_cb (GtkAppChooserWidget *w, GAppInfo *app, gpointer d)
 GtkWidget *
 app_create_widget (GtkWidget *dlg)
 {
-  gchar *ctype;
+  g_autofree gchar *ctype = NULL;
   GtkWidget *w;
 
   if (options.extra_data && *options.extra_data)
-    ctype = options.extra_data[0];
+    ctype = g_strdup (options.extra_data[0]);
   else
-    ctype = "text/plain";
+    ctype = g_strdup ("text/plain");
 
   app = w = gtk_app_chooser_widget_new (ctype);
   gtk_widget_set_name (w, "yad-app-widget");
@@ -48,7 +48,7 @@ app_create_widget (GtkWidget *dlg)
   gtk_app_chooser_widget_set_show_other (GTK_APP_CHOOSER_WIDGET (w), options.app_data.show_other);
   gtk_app_chooser_widget_set_show_all (GTK_APP_CHOOSER_WIDGET (w), options.app_data.show_all);
 
-  g_signal_connect (G_OBJECT (w), "application-activated", G_CALLBACK (app_activated_cb), NULL);
+  g_signal_connect (w, "application-activated", G_CALLBACK (app_activated_cb), NULL);
 
   return w;
 }
@@ -62,52 +62,56 @@ app_print_result (void)
     {
       if (options.app_data.extended)
         {
+          g_autofree gchar *name = NULL;
+          g_autofree gchar *display_name = NULL;
+          g_autofree gchar *description = NULL;
+          g_autofree gchar *icon_str = NULL;
+          g_autofree gchar *executable = NULL;
+
+          name = g_app_info_get_name (info);
+          display_name = g_app_info_get_display_name (info);
+          description = g_app_info_get_description (info);
+          icon_str = g_icon_to_string (g_app_info_get_icon (info));
+          executable = g_app_info_get_executable (info);
+
           if (options.common_data.quoted_output)
             {
-              gchar *buf;
+              g_autofree gchar *quoted_name = g_shell_quote (name);
+              g_autofree gchar *quoted_display_name = g_shell_quote (display_name);
+              g_autofree gchar *quoted_description = g_shell_quote (description);
+              g_autofree gchar *quoted_icon_str = g_shell_quote (icon_str);
+              g_autofree gchar *quoted_executable = g_shell_quote (executable);
 
-              buf = g_shell_quote (g_app_info_get_name (info));
-              g_printf ("%s%s", buf, options.common_data.separator);
-              g_free (buf);
-
-              buf = g_shell_quote (g_app_info_get_display_name (info));
-              g_printf ("%s%s", buf, options.common_data.separator);
-              g_free (buf);
-
-              buf = g_shell_quote (g_app_info_get_description (info));
-              g_printf ("%s%s", buf, options.common_data.separator);
-              g_free (buf);
-
-              buf = g_shell_quote (g_icon_to_string (g_app_info_get_icon (info)));
-              g_printf ("%s%s", buf, options.common_data.separator);
-              g_free (buf);
-
-              buf = g_shell_quote (g_app_info_get_executable (info));
-              g_printf ("%s%s", buf, options.common_data.separator);
-              g_free (buf);
-
-              g_printf ("\n");
+              g_printf ("%s%s%s%s%s%s%s%s%s%s\n",
+                         quoted_name, options.common_data.separator,
+                         quoted_display_name, options.common_data.separator,
+                         quoted_description, options.common_data.separator,
+                         quoted_icon_str, options.common_data.separator,
+                         quoted_executable, options.common_data.separator);
             }
           else
             {
               g_printf ("%s%s%s%s%s%s%s%s%s%s\n",
-                        g_app_info_get_name (info), options.common_data.separator,
-                        g_app_info_get_display_name (info), options.common_data.separator,
-                        g_app_info_get_description (info), options.common_data.separator,
-                        g_icon_to_string (g_app_info_get_icon (info)), options.common_data.separator,
-                        g_app_info_get_executable (info), options.common_data.separator);
+                         name, options.common_data.separator,
+                         display_name, options.common_data.separator,
+                         description, options.common_data.separator,
+                         icon_str, options.common_data.separator,
+                         executable, options.common_data.separator);
             }
         }
       else
         {
+          g_autofree gchar *executable = g_app_info_get_executable (info);
+
           if (options.common_data.quoted_output)
             {
-              gchar *buf = g_shell_quote (g_app_info_get_executable (info));
-              g_printf ("%s\n", buf);
-              g_free (buf);
+              g_autofree gchar *quoted_executable = g_shell_quote (executable);
+              g_printf ("%s\n", quoted_executable);
             }
           else
-            g_printf ("%s\n", g_app_info_get_executable (info));
+            {
+              g_printf ("%s\n", executable);
+            }
         }
     }
 }
