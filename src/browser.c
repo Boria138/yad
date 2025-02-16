@@ -41,7 +41,7 @@ static gboolean show_regular = TRUE;
 static gboolean show_symbolic = FALSE;
 
 static gboolean
-key_press_cb (GtkWidget * w, GdkEventKey * ev, gpointer data)
+key_press_cb (GtkWidget *w, GdkEventKey *ev, gpointer data)
 {
   if (ev->keyval == GDK_KEY_Escape)
     {
@@ -52,10 +52,10 @@ key_press_cb (GtkWidget * w, GdkEventKey * ev, gpointer data)
 }
 
 static GtkListStore *
-load_icon_cat (IconBrowserData * data, gchar * cat)
+load_icon_cat (IconBrowserData *data, const gchar *cat)
 {
   GtkListStore *store;
-  GList *i, *icons;
+  GList *icons, *i;
   gint size, w, h;
 
   gtk_icon_size_lookup (GTK_ICON_SIZE_MENU, &w, &h);
@@ -71,15 +71,24 @@ load_icon_cat (IconBrowserData * data, gchar * cat)
       GtkIconInfo *info;
 
       info = gtk_icon_theme_lookup_icon (data->theme, i->data, size, 0);
+      if (info == NULL)
+        continue;
+
       if (gtk_icon_info_is_symbolic (info))
         {
           if (!show_symbolic)
-            continue;
+            {
+              g_object_unref (info);
+              continue;
+            }
         }
       else
         {
           if (!show_regular)
-            continue;
+            {
+              g_object_unref (info);
+              continue;
+            }
         }
       g_object_unref (info);
 
@@ -87,7 +96,7 @@ load_icon_cat (IconBrowserData * data, gchar * cat)
 
       if (pb)
         {
-          /* scale pixbuf if needed */
+          /* Scale pixbuf if needed */
           w = gdk_pixbuf_get_width (pb);
           h = gdk_pixbuf_get_height (pb);
           if (w > size || h > size)
@@ -127,7 +136,7 @@ print_icon (GtkTreeView *tv, GtkTreePath *path, GtkTreeViewColumn *col, IconBrow
 }
 
 static void
-select_icon (GtkTreeSelection * sel, IconBrowserData * data)
+select_icon (GtkTreeSelection *sel, IconBrowserData *data)
 {
   GtkTreeModel *model;
   GtkTreeIter iter;
@@ -151,18 +160,15 @@ select_icon (GtkTreeSelection * sel, IconBrowserData * data)
   else
     file = NULL;
 
-  /* create sizes string */
-  i = 0;
+  /* Create sizes string */
   sizes = g_string_new ("");
-  while (sz[i])
+  for (i = 0; sz[i]; i++)
     {
       if (sz[i] == -1)
         g_string_append (sizes, _("scalable "));
       else
         g_string_append_printf (sizes, "%dx%d ", sz[i], sz[i]);
-      i++;
     }
-  /* free memory */
   g_free (sz);
 
   gtk_label_set_text (GTK_LABEL (data->lname), icon);
@@ -176,7 +182,7 @@ select_icon (GtkTreeSelection * sel, IconBrowserData * data)
 }
 
 static void
-select_cat (GtkTreeSelection * sel, IconBrowserData * data)
+select_cat (GtkTreeSelection *sel, IconBrowserData *data)
 {
   GtkTreeModel *model;
   GtkListStore *store;
@@ -198,7 +204,7 @@ select_cat (GtkTreeSelection * sel, IconBrowserData * data)
 }
 
 gint
-main (gint argc, gchar * argv[])
+main (gint argc, gchar *argv[])
 {
   IconBrowserData *data;
   gchar **themes = NULL;
@@ -253,7 +259,7 @@ main (gint argc, gchar * argv[])
       show_symbolic = TRUE;
     }
 
-  /* load icon theme */
+  /* Load icon theme */
   data->theme = gtk_icon_theme_get_default ();
   if (themes && themes[0])
     {
@@ -261,19 +267,19 @@ main (gint argc, gchar * argv[])
       gtk_icon_theme_set_custom_theme (data->theme, themes[0]);
     }
 
-  /* create interface */
+  /* Create interface */
   data->win = gtk_window_new (GTK_WINDOW_TOPLEVEL);
   gtk_window_set_title (GTK_WINDOW (data->win), _("Icon browser"));
   gtk_window_set_icon_name (GTK_WINDOW (data->win), "gtk-info");
   gtk_window_set_default_size (GTK_WINDOW (data->win), 500, 400);
-  g_signal_connect (G_OBJECT (data->win), "delete-event", G_CALLBACK (gtk_main_quit), NULL);
-  g_signal_connect (G_OBJECT (data->win), "key-press-event", G_CALLBACK (key_press_cb), NULL);
+  g_signal_connect (data->win, "delete-event", G_CALLBACK (gtk_main_quit), NULL);
+  g_signal_connect (data->win, "key-press-event", G_CALLBACK (key_press_cb), NULL);
 
   box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 5);
   gtk_container_add (GTK_CONTAINER (data->win), box);
   gtk_container_set_border_width (GTK_CONTAINER (data->win), 5);
 
-  /* create icon info box */
+  /* Create icon info box */
   t = gtk_grid_new ();
   gtk_grid_set_row_spacing (GTK_GRID (t), 5);
   gtk_grid_set_column_spacing (GTK_GRID (t), 5);
@@ -315,12 +321,12 @@ main (gint argc, gchar * argv[])
   gtk_grid_attach (GTK_GRID (t), data->lfile, 2, 2, 1, 1);
   gtk_widget_set_hexpand (data->lfile, TRUE);
 
-  /* create icon browser */
+  /* Create icon browser */
   p = gtk_paned_new (GTK_ORIENTATION_HORIZONTAL);
   gtk_paned_set_position (GTK_PANED (p), 150);
   gtk_box_pack_start (GTK_BOX (box), p, TRUE, TRUE, 2);
 
-  /* create category list */
+  /* Create category list */
   w = gtk_scrolled_window_new (NULL, NULL);
   gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW (w), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
   gtk_scrolled_window_set_shadow_type (GTK_SCROLLED_WINDOW (w), GTK_SHADOW_ETCHED_IN);
@@ -333,15 +339,15 @@ main (gint argc, gchar * argv[])
   gtk_container_add (GTK_CONTAINER (w), data->cat_list);
 
   sel = gtk_tree_view_get_selection (GTK_TREE_VIEW (data->cat_list));
-  g_signal_connect (G_OBJECT (sel), "changed", G_CALLBACK (select_cat), data);
+  g_signal_connect (sel, "changed", G_CALLBACK (select_cat), data);
 
   r = gtk_cell_renderer_text_new ();
   col = gtk_tree_view_column_new_with_attributes (_("Category"), r, "text", 0, NULL);
   gtk_tree_view_column_set_expand (col, TRUE);
   gtk_tree_view_append_column (GTK_TREE_VIEW (data->cat_list), col);
 
-  /* load icons category */
-  data->icons = g_hash_table_new (g_direct_hash, g_direct_equal);
+  /* Load icons category */
+  data->icons = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, (GDestroyNotify) g_object_unref);
   icat = gtk_icon_theme_list_contexts (data->theme);
   for (ic = icat; ic; ic = ic->next)
     {
@@ -353,7 +359,7 @@ main (gint argc, gchar * argv[])
     }
   g_list_free (icat);
 
-  /* create icons list */
+  /* Create icons list */
   w = gtk_scrolled_window_new (NULL, NULL);
   gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW (w), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
   gtk_scrolled_window_set_shadow_type (GTK_SCROLLED_WINDOW (w), GTK_SHADOW_ETCHED_IN);
@@ -364,10 +370,10 @@ main (gint argc, gchar * argv[])
   gtk_container_add (GTK_CONTAINER (w), data->icon_list);
 
   sel = gtk_tree_view_get_selection (GTK_TREE_VIEW (data->icon_list));
-  g_signal_connect (G_OBJECT (sel), "changed", G_CALLBACK (select_icon), data);
+  g_signal_connect (sel, "changed", G_CALLBACK (select_icon), data);
 
   if (interactive)
-    g_signal_connect (G_OBJECT (data->icon_list), "row-activated", G_CALLBACK (print_icon), data);
+    g_signal_connect (data->icon_list, "row-activated", G_CALLBACK (print_icon), data);
 
   col = gtk_tree_view_column_new ();
   gtk_tree_view_column_set_title (col, _("Icons"));
@@ -383,8 +389,11 @@ main (gint argc, gchar * argv[])
 
   gtk_widget_show_all (data->win);
 
-  /* run it */
+  /* Run it */
   gtk_main ();
+
+  g_hash_table_unref (data->icons);
+  g_free (data);
 
   return 0;
 }
